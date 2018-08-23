@@ -1,17 +1,20 @@
-glog
+
+Modified
 ====
 
-Modified:
-1 通过option设置log的行为（flag设置方式保留）
-    ```go
-        gglog.WithOptions(gglog.OptLogDir(".//log_dir/"), gglog.OptToStderr())
-        gglog.Debug("some thing")
-        gglog.Flush()
-    ```
-2 log写入文件时，写入单独的文件
-3 添加log threshold 小于等于threshold 的日志不输出，可通过http设置
-4 flushInterval改为5秒
-5 MaxSize默认修改为128M
+1. 通过option设置log的行为（flag设置方式保留）
+```go
+    gglog.WithOptions(gglog.OptLogDir(".//log_dir/"), gglog.OptToStderr())
+    gglog.Debug("some thing")
+    gglog.Flush()
+```
+2. log写入文件时，写入单独的文件
+3. 添加log threshold 小于等于threshold 的日志不输出，可通过http设置
+4. flushInterval改为5秒
+5. MaxSize默认修改为128M
+
+glog
+====
 
 Leveled execution logs for Go.
 
