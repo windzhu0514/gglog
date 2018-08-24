@@ -95,19 +95,16 @@ func logName(t time.Time) (name string) {
 	// 	t.Second(),
 	// 	pid)
 
-	name = fmt.Sprintf("%02d%02d%02d.log",
+	format := "%02d%02d%02d"
+	if logging.fileNum > 0 {
+		format += fmt.Sprintf(".%d", logging.fileNum)
+	}
+
+	name = fmt.Sprintf(format+".log",
 		t.Year(),
 		t.Month(),
 		t.Day(),
 	)
-
-	if !logging.dev {
-		name += fmt.Sprintf("-%02d%02d%02d.log",
-			t.Hour(),
-			t.Minute(),
-			t.Second(),
-		)
-	}
 
 	return
 }

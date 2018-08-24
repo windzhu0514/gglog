@@ -474,6 +474,7 @@ func init() {
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
 
+	logging.logthreshold = severity(-1)
 	logging.setVState(0, nil, false)
 	go logging.flushDaemon()
 }
@@ -542,13 +543,6 @@ func OptLogThreshold(value string) option {
 	})
 }
 
-// OptDev set dev mode
-func OptDev() option {
-	return optionFunc(func() {
-		logging.dev = true
-	})
-}
-
 // WithOptions applies the supplied Options to logging
 func WithOptions(opts ...option) {
 	for _, opt := range opts {
@@ -574,9 +568,6 @@ type loggingT struct {
 	// for better parallelization.
 	freeListMu sync.Mutex
 
-	// dev mode log file rotate daily and no file size limit.
-	dev bool
-
 	// mu protects the remaining elements of this structure and is
 	// used to synchronize logging.
 	mu sync.Mutex
@@ -584,8 +575,7 @@ type loggingT struct {
 	logDir string
 	// file holds writer for each of the log types.
 	//file [numSeverity]flushSyncWriter
-	file *syncBuffer
-	//TODO: 当前日期的日志文件个数
+	file    *syncBuffer
 	fileNum int
 	// pcs is used in V to avoid an allocation when computing the caller's PC.
 	pcs [1]uintptr
@@ -962,7 +952,8 @@ func (sb *syncBuffer) Sync() error {
 }
 
 func (sb *syncBuffer) Write(p []byte) (n int, err error) {
-	if sb.nbytes+uint64(len(p)) >= MaxSize && !logging.dev {
+	if sb.nbytes+uint64(len(p)) >= MaxSize {
+		logging.fileNum++
 		if err := sb.rotateFile(time.Now()); err != nil {
 			sb.logger.exit(err)
 		}
