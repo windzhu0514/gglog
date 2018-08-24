@@ -55,24 +55,24 @@ func (f *flushBuffer) Sync() error {
 }
 
 // swap sets the log writers and returns the old array.
-func (l *loggingT) swap(writers [numSeverity]flushSyncWriter) (old [numSeverity]flushSyncWriter) {
+func (l *loggingT) swap(writer flushSyncWriter) (old flushSyncWriter) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	old = l.file
-	for i, w := range writers {
-		logging.file[i] = w
-	}
+
+	logging.file = writer
+
 	return
 }
 
 // newBuffers sets the log writers to all new byte buffers and returns the old array.
-func (l *loggingT) newBuffers() [numSeverity]flushSyncWriter {
-	return l.swap([numSeverity]flushSyncWriter{new(flushBuffer), new(flushBuffer), new(flushBuffer), new(flushBuffer)})
+func (l *loggingT) newBuffers() flushSyncWriter {
+	return l.swap(new(flushBuffer))
 }
 
 // contents returns the specified log value as a string.
 func contents(s severity) string {
-	return logging.file[s].(*flushBuffer).String()
+	return logging.file.(*flushBuffer).String()
 }
 
 // contains reports whether the string is contained in the log.
@@ -177,10 +177,10 @@ func TestHeader(t *testing.T) {
 	timeNow = func() time.Time {
 		return time.Date(2006, 1, 2, 15, 4, 5, .067890e9, time.Local)
 	}
-	pid = 1234
+
 	Info("test")
 	var line int
-	format := "I0102 15:04:05.067890    1234 glog_test.go:%d] test\n"
+	format := "20060102 15:04:05.067890 gglog_test.go:%d I] test\n"
 	n, err := fmt.Sscanf(contents(infoLog), format, &line)
 	if n != 1 || err != nil {
 		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
@@ -253,7 +253,7 @@ func TestV(t *testing.T) {
 func TestVmoduleOn(t *testing.T) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
-	logging.vmodule.Set("glog_test=2")
+	logging.vmodule.Set("gglog_test=2")
 	defer logging.vmodule.Set("")
 	if !V(1) {
 		t.Error("V not enabled for 1")
@@ -293,9 +293,9 @@ func TestVmoduleOff(t *testing.T) {
 // vGlobs are patterns that match/don't match this file at V=2.
 var vGlobs = map[string]bool{
 	// Easy to test the numeric match here.
-	"glog_test=1": false, // If -vmodule sets V to 1, V(2) will fail.
-	"glog_test=2": true,
-	"glog_test=3": true, // If -vmodule sets V to 1, V(3) will succeed.
+	"gglog_test=1": false, // If -vmodule sets V to 1, V(2) will fail.
+	"gglog_test=2": true,
+	"gglog_test=3": true, // If -vmodule sets V to 1, V(3) will succeed.
 	// These all use 2 and check the patterns. All are true.
 	"*=2":           true,
 	"?l*=2":         true,
@@ -337,7 +337,7 @@ func TestRollover(t *testing.T) {
 	MaxSize = 512
 
 	Info("x") // Be sure we have a file.
-	info, ok := logging.file[infoLog].(*syncBuffer)
+	info, ok := logging.file.(*syncBuffer)
 	if !ok {
 		t.Fatal("info wasn't created")
 	}
@@ -399,7 +399,7 @@ func TestLogBacktraceAt(t *testing.T) {
 		// Need 2 appearances, one in the log header and one in the trace:
 		//   log_test.go:281: I0511 16:36:06.952398 02238 log_test.go:280] we want a stack trace here
 		//   ...
-		//   github.com/glog/glog_test.go:280 (0x41ba91)
+		//   github.com/windzhu0514/gglog_test.go:280 (0x41ba91)
 		//   ...
 		// We could be more precise but that would require knowing the details
 		// of the traceback format, which may not be dependable.
@@ -411,5 +411,14 @@ func BenchmarkHeader(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf, _, _ := logging.header(infoLog, 0)
 		logging.putBuffer(buf)
+	}
+}
+
+func BenchmarkDebugf(b *testing.B) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+
+	for i := 0; i < b.N; i++ {
+		Debugf("%s", "Debugf")
 	}
 }

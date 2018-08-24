@@ -575,7 +575,7 @@ type loggingT struct {
 	logDir string
 	// file holds writer for each of the log types.
 	//file [numSeverity]flushSyncWriter
-	file    *syncBuffer
+	file    flushSyncWriter
 	fileNum int
 	// pcs is used in V to avoid an allocation when computing the caller's PC.
 	pcs [1]uintptr
@@ -700,7 +700,7 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	// It's worth about 3X. Fprintf is hard.
 	year, month, day := now.Date()
 	hour, minute, second := now.Clock()
-	// yyyymmdd hh:mm:ss.uuuuuu L file:line]
+	// yyyymmdd hh:mm:ss.uuuuuu file:line L]
 	buf.nDigits(4, 0, int(year), ' ')
 	buf.twoDigits(4, int(month))
 	buf.twoDigits(6, day)
