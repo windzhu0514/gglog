@@ -585,6 +585,8 @@ type loggingT struct {
 	// file holds writer for each of the log types.
 	//file [numSeverity]flushSyncWriter
 	file *syncBuffer
+	//TODO: 当前日期的日志文件个数
+	fileNum int
 	// pcs is used in V to avoid an allocation when computing the caller's PC.
 	pcs [1]uintptr
 	// vmap is a cache of the V Level for each V() call site, identified by PC.
