@@ -261,17 +261,17 @@ var severityStats = [numSeverity]*OutputStats{
 }
 
 // Level is exported because it appears in the arguments to V and is
-// // the type of the v flag, which can be set programmatically.
-// // It's a distinct type because we want to discriminate it from logType.
-// // Variables of type level are only changed under logging.mu.
-// // The -v flag is read only with atomic ops, so the state of the logging
-// // module is consistent.
-//
-// // Level is treated as a sync/atomic int32.
-//
-// // Level specifies a level of verbosity for V logs. *Level implements
-// // flag.Value; the -v flag is of type Level and should be modified
-// // only through the flag.Value interface.
+// the type of the v flag, which can be set programmatically.
+// It's a distinct type because we want to discriminate it from logType.
+// Variables of type level are only changed under logging.mu.
+// The -v flag is read only with atomic ops, so the state of the logging
+// module is consistent.
+
+// Level is treated as a sync/atomic int32.
+
+// Level specifies a level of verbosity for V logs. *Level implements
+// flag.Value; the -v flag is of type Level and should be modified
+// only through the flag.Value interface.
 type Level int32
 
 // get returns the value of the Level.
@@ -470,7 +470,7 @@ func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
 	flag.Var(&logging.verbosity, "v", "log level for V logs")
-	flag.Var(&logging.logthreshold, "logthreshold", "logs at or above this threshold go to stderr")
+	flag.Var(&logging.logthreshold, "logthreshold", "logs below this threshold does not output")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
 
@@ -577,6 +577,7 @@ type loggingT struct {
 	//file [numSeverity]flushSyncWriter
 	file    flushSyncWriter
 	fileNum int
+
 	// pcs is used in V to avoid an allocation when computing the caller's PC.
 	pcs [1]uintptr
 	// vmap is a cache of the V Level for each V() call site, identified by PC.
@@ -831,7 +832,7 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 	// 	os.Stderr.Write([]byte("ERROR: logging before flag.Parse: "))
 	// 	os.Stderr.Write(data)
 	// } else
-	if l.toStderr {
+	if l.toStderr || l.logDir == "" {
 		os.Stderr.Write(data)
 	} else {
 		if alsoToStderr || l.alsoToStderr /*|| s >= l.stderrThreshold.get()*/ {
@@ -892,7 +893,7 @@ func timeoutFlush(timeout time.Duration) {
 	select {
 	case <-done:
 	case <-time.After(timeout):
-		fmt.Fprintln(os.Stderr, "glog: Flush took longer than", timeout)
+		fmt.Fprintln(os.Stderr, "gglog: Flush took longer than", timeout)
 	}
 }
 
@@ -958,6 +959,7 @@ func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 			sb.logger.exit(err)
 		}
 	}
+
 	n, err = sb.Writer.Write(p)
 	sb.nbytes += uint64(n)
 	if err != nil {
@@ -1017,7 +1019,7 @@ func (l *loggingT) createFiles() error {
 	return nil
 }
 
-const flushInterval = 5 * time.Second
+const flushInterval = 10 * time.Second
 
 // flushDaemon periodically flushes the log file buffers.
 func (l *loggingT) flushDaemon() {
