@@ -13,6 +13,9 @@
 4. flushInterval 改为 5 秒
 5. MaxSize 默认修改为 128M
 
+TODO:
+1. 可配置按文件大小或者日期分隔
+
 # 例子
 
 设置 logthreshold

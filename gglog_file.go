@@ -94,6 +94,8 @@ func logName(t time.Time) (name string) {
 	// 	t.Minute(),
 	// 	t.Second(),
 	// 	pid)
+	// 按大小分隔 文件名格式 20180102-183824.log
+	// 按日期分隔 文件名格式 20180102.log
 
 	format := "%02d%02d%02d"
 	if logging.fileNum > 0 {

@@ -473,6 +473,7 @@ func init() {
 	flag.Var(&logging.logthreshold, "logthreshold", "logs below this threshold does not output")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	flag.IntVar(&logging.maxFileSize, "maxfilesize", 0, "max log file size,if > 0 rotate file by size")
 
 	logging.logthreshold = severity(-1)
 	logging.setVState(0, nil, false)
@@ -575,8 +576,9 @@ type loggingT struct {
 	logDir string
 	// file holds writer for each of the log types.
 	//file [numSeverity]flushSyncWriter
-	file    flushSyncWriter
-	fileNum int
+	file        flushSyncWriter
+	fileNum     int
+	maxFileSize int
 
 	// pcs is used in V to avoid an allocation when computing the caller's PC.
 	pcs [1]uintptr
@@ -701,28 +703,28 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	// It's worth about 3X. Fprintf is hard.
 	year, month, day := now.Date()
 	hour, minute, second := now.Clock()
-	// yyyymmdd hh:mm:ss.uuuuuu file:line L]
-	buf.nDigits(4, 0, int(year), ' ')
-	buf.twoDigits(4, int(month))
-	buf.twoDigits(6, day)
-	buf.tmp[8] = ' '
-	buf.twoDigits(9, hour)
-	buf.tmp[11] = ':'
-	buf.twoDigits(12, minute)
-	buf.tmp[14] = ':'
-	buf.twoDigits(15, second)
-	buf.tmp[17] = '.'
-	buf.nDigits(6, 18, now.Nanosecond()/1000, '0')
-	buf.tmp[24] = ' '
-	buf.Write(buf.tmp[:25])
+	// Lyyyymmdd hh:mm:ss.uuuuuu file:line]
+	buf.tmp[0] = severityChar[s]
+	buf.tmp[1] = ' '
+	buf.nDigits(4, 2, int(year), ' ')
+	buf.twoDigits(6, int(month))
+	buf.twoDigits(8, day)
+	buf.tmp[10] = ' '
+	buf.twoDigits(11, hour)
+	buf.tmp[13] = ':'
+	buf.twoDigits(14, minute)
+	buf.tmp[16] = ':'
+	buf.twoDigits(17, second)
+	buf.tmp[19] = '.'
+	buf.nDigits(6, 20, now.Nanosecond()/1000, '0')
+	buf.tmp[27] = ' '
+	buf.Write(buf.tmp[:28])
 	buf.WriteString(file)
 	buf.tmp[0] = ':'
 	n := buf.someDigits(1, line)
-	buf.tmp[n+1] = ' '
-	buf.tmp[n+2] = severityChar[s]
-	buf.tmp[n+3] = ']'
-	buf.tmp[n+4] = ' '
-	buf.Write(buf.tmp[:n+5])
+	buf.tmp[n+1] = ']'
+	buf.tmp[n+2] = ' '
+	buf.Write(buf.tmp[:n+3])
 	return buf
 }
 
@@ -953,6 +955,10 @@ func (sb *syncBuffer) Sync() error {
 }
 
 func (sb *syncBuffer) Write(p []byte) (n int, err error) {
+	if logging.maxFileSize > 0 {
+
+	}
+
 	if sb.nbytes+uint64(len(p)) >= MaxSize {
 		logging.fileNum++
 		if err := sb.rotateFile(time.Now()); err != nil {
